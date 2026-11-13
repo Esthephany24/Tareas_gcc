@@ -1,0 +1,298 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Gestor de Tareas</title>
+
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            margin: 0;
+            padding: 30px 15px;
+            color: #1e293b;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: auto;
+        }
+
+        header {
+            background: #2563eb;
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+        }
+
+        header h1 {
+            margin: 0 0 8px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 12px #00000010;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin-top: 7px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+        }
+
+        button {
+            padding: 12px 18px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+            margin-top: 18px;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .secondary {
+            background: #475569;
+        }
+
+        .task {
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+
+        .success {
+            color: #15803d;
+            margin-top: 12px;
+        }
+
+        .error {
+            color: #dc2626;
+            margin-top: 12px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 20px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-size: 12px;
+        }
+
+        @media(max-width: 550px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container" x-data="tareasApp()" x-init="cargarTareas()">
+
+    <header>
+        <h1>📋 Mi Gestor de Tareas</h1>
+        <p>Registra y consulta tus actividades fácilmente.</p>
+    </header>
+
+    <!-- FORMULARIO -->
+    <section class="card">
+        <h2>Registrar nueva tarea</h2>
+
+        <form @submit.prevent="registrarTarea()">
+
+            <div class="form-grid">
+
+                <div>
+                    <label>ID</label>
+                    <input type="number" x-model.number="form.id" required>
+                </div>
+
+                <div>
+                    <label>Nombre</label>
+                    <input type="text" x-model="form.nombre"
+                           placeholder="Ej. Estudiar Java" required>
+                </div>
+
+                <div>
+                    <label>Descripción</label>
+                    <input type="text" x-model="form.descripcion"
+                           placeholder="Descripción de la tarea" required>
+                </div>
+
+                <div>
+                    <label>Prioridad</label>
+                    <select x-model="form.prioridad">
+                        <option value="Alta">Alta</option>
+                        <option value="Media">Media</option>
+                        <option value="Baja">Baja</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <button type="submit" :disabled="guardando">
+                <span x-show="!guardando">Guardar tarea</span>
+                <span x-show="guardando">Guardando...</span>
+            </button>
+
+        </form>
+
+        <p class="success" x-show="mensaje" x-text="mensaje"></p>
+        <p class="error" x-show="error" x-text="error"></p>
+    </section>
+
+    <!-- LISTA DE TAREAS -->
+    <section class="card">
+
+        <h2>Mis tareas registradas</h2>
+
+        <button class="secondary" @click="cargarTareas()"
+                :disabled="cargando">
+            <span x-show="!cargando">Consultar tareas</span>
+            <span x-show="cargando">Cargando...</span>
+        </button>
+
+        <p x-show="cargando">Consultando información...</p>
+
+        <template x-for="tarea in tareas" :key="tarea.id">
+            <div class="task">
+                <h3 x-text="tarea.nombre"></h3>
+
+                <p x-text="tarea.descripcion"></p>
+
+                <span class="badge" x-text="tarea.prioridad"></span>
+
+                <p>
+                    Estado:
+                    <strong x-text="tarea.completada ? 'Completada' : 'Pendiente'"></strong>
+                </p>
+
+                <small x-text="'ID: ' + tarea.id"></small>
+            </div>
+        </template>
+
+        <p x-show="!cargando && tareas.length === 0">
+            Todavía no hay tareas registradas.
+        </p>
+
+    </section>
+
+</div>
+
+<script>
+function tareasApp() {
+    return {
+
+        tareas: [],
+        cargando: false,
+        guardando: false,
+        mensaje: '',
+        error: '',
+
+        form: {
+            id: '',
+            nombre: '',
+            descripcion: '',
+            prioridad: 'Alta',
+            completada: false
+        },
+
+        // MÉTODO GET
+        async cargarTareas() {
+            this.cargando = true;
+            this.error = '';
+
+            try {
+                const respuesta = await fetch('/api/tareas');
+
+                if (!respuesta.ok) {
+                    throw new Error('No se pudieron consultar las tareas');
+                }
+
+                this.tareas = await respuesta.json();
+
+            } catch (e) {
+                this.error = e.message;
+            } finally {
+                this.cargando = false;
+            }
+        },
+
+        // MÉTODO POST
+        async registrarTarea() {
+            this.guardando = true;
+            this.mensaje = '';
+            this.error = '';
+
+            try {
+                const respuesta = await fetch('/api/tareas', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.form)
+                });
+
+                if (!respuesta.ok) {
+                    throw new Error('No se pudo registrar la tarea, ingrese otro ID');
+                }
+
+                const nuevaTarea = await respuesta.json();
+
+                this.mensaje = '¡Tarea registrada correctamente!';
+
+                this.form = {
+                    id: '',
+                    nombre: '',
+                    descripcion: '',
+                    prioridad: 'Alta',
+                    completada: false
+                };
+
+                await this.cargarTareas();
+
+            } catch (e) {
+                this.error = e.message;
+            } finally {
+                this.guardando = false;
+            }
+        }
+    }
+}
+</script>
+
+</body>
+</html>

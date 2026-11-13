@@ -1,6 +1,8 @@
 package com.ejemplo.tareas;
 
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,16 +13,28 @@ public class TareaController {
 
     private List<Tarea> tareas = new ArrayList<>();
 
-    // MÉTODO GET: mostrar todas las tareas
+    // GET: consultar tareas
     @GetMapping
     public List<Tarea> listarTareas() {
         return tareas;
     }
 
-    // MÉTODO POST: registrar una nueva tarea
+    // POST: registrar tareas
     @PostMapping
-    public Tarea registrarTarea(@RequestBody Tarea tarea) {
+    public ResponseEntity<?> registrarTarea(@RequestBody Tarea tarea) {
+        
+        //vamos comprobar si ID existe
+        boolean existe = tareas.stream()
+            .anyMatch(t -> t.id().equals(tarea.id()));
+
+        if (existe){
+            return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body("Error: Ya existe una tarea con ese ID");
+        }    
         tareas.add(tarea);
-        return tarea;
+        return ResponseEntity
+            .status(HttpStatus.CREATED)
+            .body(tarea);
     }
 }
